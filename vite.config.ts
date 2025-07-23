@@ -45,6 +45,6 @@ export default defineConfig({
     renderer()
   ],
   server: {
-    port: 5174
+    port: 5173
   }
 })

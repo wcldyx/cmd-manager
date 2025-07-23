@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 
-const isDev = process.env.NODE_ENV === 'development'
+const isDev = !app.isPackaged
 
 let mainWindow: BrowserWindow
 
@@ -15,13 +15,23 @@ function createWindow(): void {
       nodeIntegration: false,
       contextIsolation: true
     },
-    titleBarStyle: 'default',
-    show: false
+    frame: false,
+    titleBarStyle: 'hidden',
+    show: false,
+    resizable: true,
+    minimizable: true,
+    maximizable: true,
+    closable: true
   })
 
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173')
-    mainWindow.webContents.openDevTools()
+    // 先尝试5173，如果失败则尝试5174
+    mainWindow.loadURL('http://localhost:5173').catch(() => {
+      console.log('Trying port 5174...')
+      mainWindow.loadURL('http://localhost:5174').catch(() => {
+        console.log('Failed to connect to dev server')
+      })
+    })
   } else {
     mainWindow.loadFile(join(__dirname, '../dist/index.html'))
   }
@@ -107,7 +117,7 @@ ipcMain.handle('execute-command', async (_, command: string, workingDir?: string
             console.log('临时文件已清理:', tempBatFile)
           }
         } catch (e) {
-          console.log('清理临时文件失败:', e.message)
+          console.log('清理临时文件失败:', e instanceof Error ? e.message : String(e))
         }
       }, 10 * 60 * 1000)
       
@@ -117,4 +127,27 @@ ipcMain.handle('execute-command', async (_, command: string, workingDir?: string
       reject(error)
     }
   })
+})
+
+// 窗口控制IPC处理程序
+ipcMain.handle('minimize-window', () => {
+  if (mainWindow) {
+    mainWindow.minimize()
+  }
+})
+
+ipcMain.handle('maximize-window', () => {
+  if (mainWindow) {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize()
+    } else {
+      mainWindow.maximize()
+    }
+  }
+})
+
+ipcMain.handle('close-window', () => {
+  if (mainWindow) {
+    mainWindow.close()
+  }
 })
