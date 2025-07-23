@@ -4,6 +4,7 @@
   "directories": {
     "output": "release"
   },
+  "icon": "icon-256x256.png",
   "files": [
     "dist/**/*",
     "dist-electron/**/*",

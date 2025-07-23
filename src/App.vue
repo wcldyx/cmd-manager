@@ -11,6 +11,20 @@
 
       <div class="flex items-center gap-2">
         <button
+          @click="exportCommands"
+          class="btn-icon text-gray-600 hover:bg-gray-100 no-drag"
+          title="导出命令"
+        >
+          <i class="i-material-symbols-download w-4 h-4"></i>
+        </button>
+        <button
+          @click="triggerImport"
+          class="btn-icon text-gray-600 hover:bg-gray-100 no-drag"
+          title="导入命令"
+        >
+          <i class="i-material-symbols-upload w-4 h-4"></i>
+        </button>
+        <button
           @click="showAddForm = true"
           class="btn text-sm px-2 py-1 no-drag"
         >
@@ -44,6 +58,15 @@
         </div>
       </div>
     </div>
+
+    <!-- 隐藏的文件输入元素 -->
+    <input
+      ref="fileInput"
+      type="file"
+      accept=".json"
+      @change="handleFileImport"
+      style="display: none;"
+    />
 
     <!-- 命令列表 -->
     <div class="flex-1 overflow-auto p-4">
@@ -196,6 +219,7 @@ interface Command {
 const commands = ref<Command[]>([]);
 const showAddForm = ref(false);
 const editingCommand = ref<Command | null>(null);
+const fileInput = ref<HTMLInputElement>();
 
 const formData = reactive({
   title: "",
@@ -465,6 +489,94 @@ const closeWindow = () => {
   if (window.electronAPI) {
     window.electronAPI.closeWindow();
   }
+};
+
+// 导出命令
+const exportCommands = () => {
+  try {
+    const exportData = {
+      version: "1.0.0",
+      timestamp: new Date().toISOString(),
+      commands: commands.value,
+    };
+
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: "application/json" });
+    
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = `cmd-commands-backup-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    
+    // 清理URL对象
+    URL.revokeObjectURL(link.href);
+    
+    alert(`成功导出 ${commands.value.length} 个命令！`);
+  } catch (error) {
+    console.error("导出失败:", error);
+    alert("导出失败，请重试");
+  }
+};
+
+// 触发导入文件选择
+const triggerImport = () => {
+  fileInput.value?.click();
+};
+
+// 处理文件导入
+const handleFileImport = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const content = e.target?.result as string;
+      const importData = JSON.parse(content);
+      
+      // 验证数据格式
+      if (!importData.commands || !Array.isArray(importData.commands)) {
+        throw new Error("无效的备份文件格式");
+      }
+      
+      // 验证命令数据结构
+      const validCommands = importData.commands.filter((cmd: any) => 
+        cmd.id && cmd.title && cmd.command
+      );
+      
+      if (validCommands.length === 0) {
+        throw new Error("备份文件中没有有效的命令数据");
+      }
+      
+      // 询问用户是否要合并还是替换
+      const shouldReplace = confirm(
+        `发现 ${validCommands.length} 个命令。\n\n点击"确定"替换当前所有命令\n点击"取消"将新命令添加到现有命令中`
+      );
+      
+      if (shouldReplace) {
+        commands.value = validCommands;
+      } else {
+        // 合并命令，避免重复ID
+        const existingIds = new Set(commands.value.map(cmd => cmd.id));
+        const newCommands = validCommands.filter((cmd: Command) => !existingIds.has(cmd.id));
+        commands.value = [...commands.value, ...newCommands];
+      }
+      
+      saveCommands();
+      alert(`成功导入 ${shouldReplace ? validCommands.length : validCommands.filter((cmd: Command) => !new Set(commands.value.map(c => c.id)).has(cmd.id)).length} 个命令！`);
+      
+    } catch (error) {
+      console.error("导入失败:", error);
+      alert(`导入失败: ${error instanceof Error ? error.message : "未知错误"}`);
+    }
+  };
+  
+  reader.readAsText(file);
+  
+  // 清空文件输入，允许重复选择同一文件
+  target.value = "";
 };
 
 onMounted(() => {
