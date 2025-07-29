@@ -1,10 +1,25 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, globalShortcut } from 'electron'
 import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 
 const isDev = !app.isPackaged
 
 let mainWindow: BrowserWindow
+
+// 确保单实例运行
+const gotTheLock = app.requestSingleInstanceLock()
+
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    // 当运行第二个实例时，聚焦到现有窗口
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    }
+  })
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -44,6 +59,28 @@ function createWindow(): void {
     shell.openExternal(url)
     return { action: 'deny' }
   })
+
+  // 开发模式下启用开发者工具
+  if (isDev) {
+    // 默认打开开发者工具
+    mainWindow.webContents.openDevTools()
+    
+    // 注册全局快捷键
+    
+    // F12 切换开发者工具
+    globalShortcut.register('F12', () => {
+      if (mainWindow) {
+        mainWindow.webContents.toggleDevTools()
+      }
+    })
+    
+    // Ctrl+Shift+I 切换开发者工具
+    globalShortcut.register('CommandOrControl+Shift+I', () => {
+      if (mainWindow) {
+        mainWindow.webContents.toggleDevTools()
+      }
+    })
+  }
 }
 
 app.whenReady().then(() => {
@@ -55,7 +92,14 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  // 清理全局快捷键
+  globalShortcut.unregisterAll()
   if (process.platform !== 'darwin') app.quit()
+})
+
+app.on('will-quit', () => {
+  // 清理全局快捷键
+  globalShortcut.unregisterAll()
 })
 
 // IPC handlers

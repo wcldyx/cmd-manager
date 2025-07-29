@@ -12,7 +12,10 @@ export default defineConfig({
       {
         entry: 'electron/main.ts',
         onstart(options) {
-          options.startup()
+          // 防止重复启动
+          if (options.startup) {
+            options.startup()
+          }
         },
         vite: {
           build: {
@@ -28,7 +31,10 @@ export default defineConfig({
       {
         entry: 'electron/preload.ts',
         onstart(options) {
-          options.reload()
+          // 只重新加载预加载脚本，不启动新窗口
+          if (options.reload) {
+            options.reload()
+          }
         },
         vite: {
           build: {

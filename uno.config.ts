@@ -6,8 +6,26 @@ export default defineConfig({
     presetIcons({
       collections: {
         'material-symbols': () => import('@iconify-json/material-symbols/icons.json').then(i => i.default)
+      },
+      extraProperties: {
+        'display': 'inline-block',
+        'vertical-align': 'middle',
       }
     })
+  ],
+  safelist: [
+    'i-material-symbols-edit',
+    'i-material-symbols-delete',
+    'i-material-symbols-add',
+    'i-material-symbols-square-outline',
+    'i-material-symbols-folder',
+    'i-material-symbols-layers',
+    'i-material-symbols-terminal',
+    'i-material-symbols-download',
+    'i-material-symbols-upload',
+    'i-material-symbols-close',
+    'i-material-symbols-minimize',
+    'i-material-symbols-play-arrow'
   ],
   shortcuts: {
     'btn': 'px-3 py-1.5 rounded bg-blue-500 text-white hover:bg-blue-600 cursor-pointer inline-flex items-center gap-1',
